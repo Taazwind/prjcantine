@@ -21,7 +21,7 @@
         <button type="submit">Ajouter</button>
       </form>
       <div>
-        <h2>Menu Personnalisé</h2>
+        <h2>Menu</h2>
         <div v-for="(dishes, category) in customMenu" :key="category">
           <h3>{{ category }}</h3>
           <div v-if="dishes.length > 0">
@@ -37,7 +37,7 @@
       </div>
     </div>
     <div v-else>
-      <p>Nombre total de plats chargés : {{ totalApiDishes }}</p>
+      <p>Nombre total de plats ajoutés : {{ totalApiDishes }}</p>
       <div>
         <h2>Menu API</h2>
         <div v-if="isLoading">
@@ -63,61 +63,46 @@
 </template>
 
 <script>
+import { onMounted, ref, reactive, computed } from "vue";
+
 export default {
-  data() {
-    return {
-      showCustomMenu: true,
-      isLoading: true,
-      newDish: {
-        title: "",
-        description: "",
-        category: "Entrée",
-      },
-      customMenu: {
-        Entrée: [],
-        Plat: [],
-        Dessert: [],
-      },
-      apiMenu: {
-        Entrée: [],
-        Plat: [],
-        Dessert: [],
-      },
+  setup() {
+    const showCustomMenu = ref(true);
+    const isLoading = ref(true);
+    const newDish = reactive({
+      title: "",
+      description: "",
+      category: "Entrée",
+    });
+    const customMenu = reactive({
+      Entrée: [],
+      Plat: [],
+      Dessert: [],
+    });
+    const apiMenu = reactive({
+      Entrée: [],
+      Plat: [],
+      Dessert: [],
+    });
+
+    const toggleMenu = () => {
+      showCustomMenu.value = !showCustomMenu.value;
     };
-  },
-  computed: {
-    totalCustomDishes() {
-      return (
-        this.customMenu.Entrée.length +
-        this.customMenu.Plat.length +
-        this.customMenu.Dessert.length
-      );
-    },
-    totalApiDishes() {
-      return (
-        this.apiMenu.Entrée.length +
-        this.apiMenu.Plat.length +
-        this.apiMenu.Dessert.length
-      );
-    },
-  },
-  methods: {
-    toggleMenu() {
-      this.showCustomMenu = !this.showCustomMenu;
-    },
-    addDish() {
-      if (this.newDish.title && this.newDish.description) {
-        this.customMenu[this.newDish.category].push({
-          title: this.newDish.title,
-          description: this.newDish.description,
+
+    const addDish = () => {
+      if (newDish.title && newDish.description) {
+        customMenu[newDish.category].push({
+          title: newDish.title,
+          description: newDish.description,
           votes: 0,
         });
-        this.newDish.title = "";
-        this.newDish.description = "";
-        this.newDish.category = "Entrée";
+        newDish.title = "";
+        newDish.description = "";
+        newDish.category = "Entrée";
       }
-    },
-    async loadApiMenu() {
+    };
+
+    const loadApiMenu = async () => {
       try {
         const response = await fetch(
           "https://tasty.p.rapidapi.com/recipes/list?from=0&size=10",
@@ -144,31 +129,67 @@ export default {
             votes: 0,
           };
 
-          if (this.isDessert(recipe)) {
-            this.apiMenu.Dessert.push(dish);
-          } else if (this.isStarter(recipe)) {
-            this.apiMenu.Entrée.push(dish);
+          if (isDessert(recipe)) {
+            apiMenu.Dessert.push(dish);
+          } else if (isStarter(recipe)) {
+            apiMenu.Entrée.push(dish);
           } else {
-            this.apiMenu.Plat.push(dish);
+            apiMenu.Plat.push(dish);
           }
         });
       } catch (error) {
         console.error("Erreur lors du chargement des plats :", error);
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
-    isDessert(recipe) {
-      const keywords = ["cake", "tart", "ice cream", "chocolate", "dessert", "muffins"];
-      return keywords.some((word) => recipe.name.toLowerCase().includes(word));
-    },
-    isStarter(recipe) {
+    };
+
+    const isDessert = (recipe) => {
+      const keywords = [
+        "cake",
+        "tart",
+        "ice cream",
+        "chocolate",
+        "dessert",
+        "muffins",
+      ];
+      return keywords.some((word) =>
+        recipe.name.toLowerCase().includes(word)
+      );
+    };
+
+    const isStarter = (recipe) => {
       const keywords = ["salad", "soup", "starter", "entrée"];
-      return keywords.some((word) => recipe.name.toLowerCase().includes(word));
-    },
-  },
-  async mounted() {
-    await this.loadApiMenu();
+      return keywords.some((word) =>
+        recipe.name.toLowerCase().includes(word)
+      );
+    };
+
+    const totalCustomDishes = computed(
+      () =>
+        customMenu.Entrée.length +
+        customMenu.Plat.length +
+        customMenu.Dessert.length
+    );
+
+    const totalApiDishes = computed(
+      () =>
+        apiMenu.Entrée.length + apiMenu.Plat.length + apiMenu.Dessert.length
+    );
+
+    onMounted(loadApiMenu);
+
+    return {
+      showCustomMenu,
+      isLoading,
+      newDish,
+      customMenu,
+      apiMenu,
+      toggleMenu,
+      addDish,
+      totalCustomDishes,
+      totalApiDishes,
+    };
   },
 };
 </script>
