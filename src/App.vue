@@ -1,15 +1,16 @@
 <template>
   <div id="app">
     <h1>Cantine scolaire</h1>
-    <button id="coubeh" @click="toggleMenu">
-      {{
-        showCustomMenu
-          ? "Afficher le menu chargé"
-          : "Afficher le menu personnalisé"
-      }}
-    </button>
+
+    <div class="day-buttons">
+      <button v-for="day in days" :key="day" @click="selectDay(day)">
+        {{ day }}
+      </button>
+    </div>
+
+    <h2>Menu du {{ selectedDay }}</h2>
+
     <div v-if="showCustomMenu">
-      <p>Nombre total de plats ajoutés : {{ totalCustomDishes }}</p>
       <form @submit.prevent="addDish">
         <input v-model="newDish.title" placeholder="Nom du plat" />
         <input v-model="newDish.description" placeholder="Description" />
@@ -20,9 +21,15 @@
         </select>
         <button type="submit">Ajouter</button>
       </form>
+
+      <button id="coubeh" @click="importDishesFromApi" :disabled="isLoading">
+        {{ isLoading ? "Chargement..." : "Importer des plats depuis l'API" }}
+      </button>
+
       <div>
+        <p>Nombre total de plats ajoutés : {{ totalDishes }}</p>
         <h2>Menu</h2>
-        <div v-for="(dishes, category) in customMenu" :key="category">
+        <div v-for="(dishes, category) in customMenu[selectedDay]" :key="category">
           <h3>{{ category }}</h3>
           <div class="dish-container" v-if="dishes.length > 0">
             <div class="dish-box" v-for="dish in dishes" :key="dish.title">
@@ -36,62 +43,41 @@
         </div>
       </div>
     </div>
-    <div v-else>
-      <p>Nombre total de plats ajoutés : {{ totalApiDishes }}</p>
-      <div>
-        <h2>Menu API</h2>
-        <div v-if="isLoading">
-          <p>Chargement des plats en cours...</p>
-        </div>
-        <div v-else>
-          <div v-for="(dishes, category) in apiMenu" :key="category">
-            <h3>{{ category }}</h3>
-            <div class="dish-container" v-if="dishes.length > 0">
-              <div class="dish-box" v-for="dish in dishes" :key="dish.id">
-                <h4>{{ dish.title }}</h4>
-                <p>{{ dish.description }}</p>
-                <p>Votes : {{ dish.votes }}</p>
-                <button @click="dish.votes++">Voter</button>
-              </div>
-            </div>
-            <p v-else>Aucun plat disponible</p>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { onMounted, ref, reactive, computed } from "vue";
+import { ref, reactive, computed } from "vue";
 
 export default {
   setup() {
+    const days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+    const selectedDay = ref("Lundi");
     const showCustomMenu = ref(true);
-    const isLoading = ref(true);
+    const isLoading = ref(false);
+
     const newDish = reactive({
       title: "",
       description: "",
       category: "Entrée",
     });
-    const customMenu = reactive({
-      Entrée: [],
-      Plat: [],
-      Dessert: [],
-    });
-    const apiMenu = reactive({
-      Entrée: [],
-      Plat: [],
-      Dessert: [],
+
+    const customMenu = reactive({});
+    days.forEach((day) => {
+      customMenu[day] = {
+        Entrée: [],
+        Plat: [],
+        Dessert: [],
+      };
     });
 
-    const toggleMenu = () => {
-      showCustomMenu.value = !showCustomMenu.value;
+    const selectDay = (day) => {
+      selectedDay.value = day;
     };
 
     const addDish = () => {
       if (newDish.title && newDish.description) {
-        customMenu[newDish.category].push({
+        customMenu[selectedDay.value][newDish.category].push({
           title: newDish.title,
           description: newDish.description,
           votes: 0,
@@ -102,15 +88,15 @@ export default {
       }
     };
 
-    const loadApiMenu = async () => {
+    const importDishesFromApi = async () => {
+      isLoading.value = true;
       try {
         const response = await fetch(
           "https://tasty.p.rapidapi.com/recipes/list?from=0&size=10",
           {
             method: "GET",
             headers: {
-              "X-RapidAPI-Key":
-                "6050ac7df2msh45e75a2d5f5082bp137a59jsnce614ff252da",
+              "X-RapidAPI-Key": "6050ac7df2msh45e75a2d5f5082bp137a59jsnce614ff252da",
               "X-RapidAPI-Host": "tasty.p.rapidapi.com",
             },
           }
@@ -123,22 +109,21 @@ export default {
         const data = await response.json();
         data.results.forEach((recipe) => {
           const dish = {
-            id: recipe.id,
             title: recipe.name,
             description: recipe.description || "Pas de description disponible",
             votes: 0,
           };
 
-          if (isDessert(recipe)) {
-            apiMenu.Dessert.push(dish);
-          } else if (isStarter(recipe)) {
-            apiMenu.Entrée.push(dish);
-          } else {
-            apiMenu.Plat.push(dish);
-          }
+          const category = isDessert(recipe)
+            ? "Dessert"
+            : isStarter(recipe)
+            ? "Entrée"
+            : "Plat";
+
+          customMenu[selectedDay.value][category].push(dish);
         });
       } catch (error) {
-        console.error("Erreur lors du chargement des plats :", error);
+        console.error("Erreur lors de l'importation :", error);
       } finally {
         isLoading.value = false;
       }
@@ -147,43 +132,43 @@ export default {
     const isDessert = (recipe) => {
       const keywords = [
         "cake",
-        "tart",
         "ice cream",
-        "chocolate",
         "dessert",
+        "chocolate",
         "muffins",
+        "macarons",
       ];
       return keywords.some((word) => recipe.name.toLowerCase().includes(word));
     };
 
     const isStarter = (recipe) => {
-      const keywords = ["salad", "soup", "starter", "entrée"];
+      const keywords = ["salad", "soup"];
       return keywords.some((word) => recipe.name.toLowerCase().includes(word));
     };
 
-    const totalCustomDishes = computed(
-      () =>
-        customMenu.Entrée.length +
-        customMenu.Plat.length +
-        customMenu.Dessert.length
-    );
+    const totalDishes = computed(() => {
+      const dayMenu = customMenu[selectedDay.value];
+      return (
+        dayMenu.Entrée.length +
+        dayMenu.Plat.length +
+        dayMenu.Dessert.length
+      );
+    });
 
-    const totalApiDishes = computed(
-      () => apiMenu.Entrée.length + apiMenu.Plat.length + apiMenu.Dessert.length
-    );
 
-    onMounted(loadApiMenu);
+    
 
     return {
+      days,
+      selectedDay,
       showCustomMenu,
       isLoading,
       newDish,
       customMenu,
-      apiMenu,
-      toggleMenu,
+      selectDay,
       addDish,
-      totalCustomDishes,
-      totalApiDishes,
+      importDishesFromApi,
+      totalDishes,
     };
   },
 };
@@ -289,6 +274,26 @@ button:hover {
 }
 
 .dish-box button:hover {
+  background-color: #0056b3;
+}
+
+.day-buttons {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.day-buttons button {
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.day-buttons button:hover {
   background-color: #0056b3;
 }
 </style>
