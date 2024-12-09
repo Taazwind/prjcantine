@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <h1>Cantine scolaire</h1>
-    <button @click="toggleMenu">
+    <button id="coubeh" @click="toggleMenu">
       {{
         showCustomMenu
           ? "Afficher le menu chargé"
@@ -24,8 +24,8 @@
         <h2>Menu</h2>
         <div v-for="(dishes, category) in customMenu" :key="category">
           <h3>{{ category }}</h3>
-          <div v-if="dishes.length > 0">
-            <div v-for="dish in dishes" :key="dish.title">
+          <div class="dish-container" v-if="dishes.length > 0">
+            <div class="dish-box" v-for="dish in dishes" :key="dish.title">
               <h4>{{ dish.title }}</h4>
               <p>{{ dish.description }}</p>
               <p>Votes : {{ dish.votes }}</p>
@@ -46,8 +46,8 @@
         <div v-else>
           <div v-for="(dishes, category) in apiMenu" :key="category">
             <h3>{{ category }}</h3>
-            <div v-if="dishes.length > 0">
-              <div v-for="dish in dishes" :key="dish.id">
+            <div class="dish-container" v-if="dishes.length > 0">
+              <div class="dish-box" v-for="dish in dishes" :key="dish.id">
                 <h4>{{ dish.title }}</h4>
                 <p>{{ dish.description }}</p>
                 <p>Votes : {{ dish.votes }}</p>
@@ -153,16 +153,12 @@ export default {
         "dessert",
         "muffins",
       ];
-      return keywords.some((word) =>
-        recipe.name.toLowerCase().includes(word)
-      );
+      return keywords.some((word) => recipe.name.toLowerCase().includes(word));
     };
 
     const isStarter = (recipe) => {
       const keywords = ["salad", "soup", "starter", "entrée"];
-      return keywords.some((word) =>
-        recipe.name.toLowerCase().includes(word)
-      );
+      return keywords.some((word) => recipe.name.toLowerCase().includes(word));
     };
 
     const totalCustomDishes = computed(
@@ -173,8 +169,7 @@ export default {
     );
 
     const totalApiDishes = computed(
-      () =>
-        apiMenu.Entrée.length + apiMenu.Plat.length + apiMenu.Dessert.length
+      () => apiMenu.Entrée.length + apiMenu.Plat.length + apiMenu.Dessert.length
     );
 
     onMounted(loadApiMenu);
@@ -195,18 +190,40 @@ export default {
 </script>
 
 <style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 40;
+  padding: 0;
+  background-color: #f8f9fa;
+}
+
 h1 {
   text-align: center;
+  margin-top: 20px;
+  color: #343a40;
 }
+
 form {
   display: flex;
   justify-content: center;
   margin-bottom: 20px;
 }
+
+h2,
+h3,
+p {
+  display: flex;
+  justify-content: center;
+}
+
 input,
 select {
   margin-right: 10px;
+  padding: 5px;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
 }
+
 button {
   background-color: #28a745;
   color: white;
@@ -215,7 +232,63 @@ button {
   cursor: pointer;
   border-radius: 3px;
 }
+
 button:hover {
   background-color: #218838;
+}
+
+#coubeh {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+}
+
+#coubeh:hover {
+  background-color: #218838;
+}
+
+.dish-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.dish-box {
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  padding: 15px;
+  width: 250px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dish-box h4 {
+  margin: 0;
+  color: #495057;
+}
+
+.dish-box p {
+  margin: 5px 0;
+  color: #6c757d;
+}
+
+.dish-box button {
+  margin-top: 10px;
+  background-color: #007bff;
+}
+
+.dish-box button:hover {
+  background-color: #0056b3;
 }
 </style>
