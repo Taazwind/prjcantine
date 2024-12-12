@@ -40,6 +40,9 @@
               <p>{{ dish.description }}</p>
               <p>Votes : {{ dish.votes }}</p>
               <button @click="dish.votes++">Voter</button>
+              <button @click="deleteDish(category, dish)" class="btn del-btn">
+                Supprimer
+              </button>
             </div>
           </div>
           <p v-else>Aucun plat disponible</p>
@@ -96,6 +99,13 @@ export default {
       Plat: [],
       Dessert: [],
     });
+
+    const deleteDish = (category, dish) => {
+      const index = customMenu[selectedDay.value][category].indexOf(dish);
+      if (index !== -1) {
+        customMenu[selectedDay.value][category].splice(index, 1);
+      }
+    };
 
     const importDishesFromApi = async () => {
       isLoading.value = true;
@@ -170,7 +180,10 @@ export default {
           ? isStarter
           : category === "Dessert"
           ? isDessert
+          : category === "Plat"
+          ? isMain
           : () => true;
+
       for (let recipe of recipes) {
         if (
           dishFinder(recipe) &&
@@ -209,6 +222,21 @@ export default {
       return keywords.some((word) => recipe.name.toLowerCase().includes(word));
     };
 
+    const isMain = (recipe) => {
+      const keywords = [
+        "chicken",
+        "beef",
+        "steak",
+        "fish",
+        "pasta",
+        "burger",
+        "vegetables",
+        "rice",
+        "quinoa",
+      ];
+      return keywords.some((word) => recipe.name.toLowerCase().includes(word));
+    };
+
     const totalDishes = computed(() => {
       const dayMenu = customMenu[selectedDay.value];
       return (
@@ -227,6 +255,7 @@ export default {
       addDish,
       importDishesFromApi,
       totalDishes,
+      deleteDish,
     };
   },
 };
@@ -353,5 +382,19 @@ button:hover {
 
 .day-buttons button:hover {
   background-color: #0056b3;
+}
+
+.btn.del-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn.del-btn:hover {
+  background-color: #c82333;
 }
 </style>
