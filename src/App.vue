@@ -2,71 +2,41 @@
   <div id="app">
     <h1>Cantine scolaire</h1>
 
-    <div class="day-buttons">
-      <button v-for="day in days" :key="day" @click="selectDay(day)">
-        {{ day }}
-      </button>
-    </div>
+    <DayButtons :days="days" @select-day="selectDay" />
 
-    <h2>Menu du {{ selectedDay }}</h2>
+    <DishForm @add-dish="addDish" />
 
-    <div v-if="showCustomMenu">
-      <form @submit.prevent="addDish">
-        <input v-model="newDish.title" placeholder="Nom du plat" />
-        <input v-model="newDish.description" placeholder="Description" />
-        <select v-model="newDish.category">
-          <option>Entrée</option>
-          <option>Plat</option>
-          <option>Dessert</option>
-        </select>
-        <button type="submit">Ajouter</button>
-      </form>
+    <button id="api-btn" @click="importDishesFromApi" :disabled="isLoading">
+      {{ isLoading ? "Chargement..." : "Importer des plats depuis l'API" }}
+    </button>
 
-      <button id="coubeh" @click="importDishesFromApi" :disabled="isLoading">
-        {{ isLoading ? "Chargement..." : "Importer des plats depuis l'API" }}
-      </button>
-
-      <div>
-        <p>Nombre total de plats ajoutés : {{ totalDishes }}</p>
-        <h2>Menu</h2>
-        <div
-          v-for="(dishes, category) in customMenu[selectedDay]"
-          :key="category"
-        >
-          <h3>{{ category }}</h3>
-          <div class="dish-container" v-if="dishes.length > 0">
-            <div class="dish-box" v-for="dish in dishes" :key="dish.title">
-              <h4>{{ dish.title }}</h4>
-              <p>{{ dish.description }}</p>
-              <p>Votes : {{ dish.votes }}</p>
-              <button @click="dish.votes++">Voter</button>
-              <button @click="deleteDish(category, dish)" class="btn del-btn">
-                Supprimer
-              </button>
-            </div>
-          </div>
-          <p v-else>Aucun plat disponible</p>
-        </div>
-      </div>
+    <div>
+      <p>Nombre total de plats ajoutés : {{ totalDishes }}</p>
+      <DishList
+        :selectedDay="selectedDay"
+        :customMenu="customMenu"
+        @delete-dish="deleteDish"
+      />
     </div>
   </div>
 </template>
 
 <script>
 import { ref, reactive, computed } from "vue";
+import DayButtons from "./components/DayButtons.vue";
+import DishForm from "./components/DishForm.vue";
+import DishList from "./components/DishList.vue";
 
 export default {
+  components: {
+    DayButtons,
+    DishForm,
+    DishList,
+  },
   setup() {
     const days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
     const selectedDay = ref("Lundi");
-    const showCustomMenu = ref(true);
     const isLoading = ref(false);
-
-    const newDish = reactive({
-      title: "",
-      description: "",
-      category: "Entrée",
-    });
 
     const customMenu = reactive({});
     days.forEach((day) => {
@@ -81,24 +51,14 @@ export default {
       selectedDay.value = day;
     };
 
-    const addDish = () => {
+    const addDish = (newDish) => {
       if (newDish.title && newDish.description) {
         customMenu[selectedDay.value][newDish.category].push({
-          title: newDish.title,
-          description: newDish.description,
+          ...newDish,
           votes: 0,
         });
-        newDish.title = "";
-        newDish.description = "";
-        newDish.category = "Entrée";
       }
     };
-
-    const displayedDishes = reactive({
-      Entrée: [],
-      Plat: [],
-      Dessert: [],
-    });
 
     const deleteDish = (category, dish) => {
       const index = customMenu[selectedDay.value][category].indexOf(dish);
@@ -131,13 +91,11 @@ export default {
         // Mélanger les recettes de manière aléatoire
         const shuffledRecipes = shuffleArray(data.results);
 
-        // Sélectionner une entrée, un plat et un dessert aléatoire
         const starter = findUniqueDish(shuffledRecipes, "Entrée");
         const mainDish = findUniqueDish(shuffledRecipes, "Plat");
         const dessert = findUniqueDish(shuffledRecipes, "Dessert");
 
         if (starter && mainDish && dessert) {
-          // Ajouter ces plats au menu du jour
           customMenu[selectedDay.value]["Entrée"].push({
             title: starter.name,
             description: starter.description || "Pas de description disponible",
@@ -156,11 +114,6 @@ export default {
             description: dessert.description || "Pas de description disponible",
             votes: 0,
           });
-
-          // Ajouter ces plats à la liste des plats affichés
-          displayedDishes["Entrée"].push(starter.name);
-          displayedDishes["Plat"].push(mainDish.name);
-          displayedDishes["Dessert"].push(dessert.name);
         } else {
           console.error(
             "Impossible de trouver une entrée, un plat ou un dessert."
@@ -185,17 +138,14 @@ export default {
           : () => true;
 
       for (let recipe of recipes) {
-        if (
-          dishFinder(recipe) &&
-          !displayedDishes[category].includes(recipe.name)
-        ) {
+        if (dishFinder(recipe)) {
           return recipe;
         }
       }
       return null;
     };
 
-    // Fonction de mélange aléatoire (Fisher-Yates)
+    // Fonction de mélange aléatoire
     const shuffleArray = (array) => {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -247,9 +197,7 @@ export default {
     return {
       days,
       selectedDay,
-      showCustomMenu,
       isLoading,
-      newDish,
       customMenu,
       selectDay,
       addDish,
@@ -275,12 +223,6 @@ h1 {
   color: #343a40;
 }
 
-form {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
 h2,
 h3,
 p {
@@ -288,28 +230,7 @@ p {
   justify-content: center;
 }
 
-input,
-select {
-  margin-right: 10px;
-  padding: 5px;
-  border: 1px solid #ced4da;
-  border-radius: 3px;
-}
-
-button {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  cursor: pointer;
-  border-radius: 3px;
-}
-
-button:hover {
-  background-color: #218838;
-}
-
-#coubeh {
+#api-btn {
   display: block;
   margin: 20px auto;
   padding: 10px 20px;
@@ -321,80 +242,7 @@ button:hover {
   text-align: center;
 }
 
-#coubeh:hover {
+#api-btn:hover {
   background-color: #218838;
-}
-
-.dish-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.dish-box {
-  background-color: white;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  padding: 15px;
-  width: 250px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.dish-box h4 {
-  margin: 0;
-  color: #495057;
-}
-
-.dish-box p {
-  margin: 5px 0;
-  color: #6c757d;
-}
-
-.dish-box button {
-  margin-top: 10px;
-  background-color: #007bff;
-}
-
-.dish-box button:hover {
-  background-color: #0056b3;
-}
-
-.day-buttons {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-  gap: 10px;
-}
-
-.day-buttons button {
-  padding: 10px 15px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.day-buttons button:hover {
-  background-color: #0056b3;
-}
-
-.btn.del-btn {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.btn.del-btn:hover {
-  background-color: #c82333;
 }
 </style>
